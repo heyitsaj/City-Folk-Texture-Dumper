@@ -13,7 +13,7 @@ This is just a project I've been working on to make it easier to dump the textur
   ✔️ Add basic support for some brres files\
   🔲 Dump textures of all files in a folder\
   🔲 Allow use for any brres file\
-  🔲 Allow use for bin files (specifically /npc/normal to get the villager textures) (This is super confusing for me and the documentation appears to be extremely limited, so I don't know if I'd be able to do it 😭)\
+  🔲 Allow use for bin files (specifically /npc/normal to get the villager textures) (This is super confusing for me and the documentation appears to be extremely limited, so I don't know if I'd be able to do it 😭)
 
 ## Note: This is my first attempt at this type of project, so feel free to let me know if there are any issues, errors or optimizations I could make and I will do my best to fix them.
 I'll continue working on this as often as I can until hopefully it can be a very useful tool for users to create custom texture packs for city folk. If you'd like to support me, feel free to do so on ko-fi, but really the thought of others finding what I make useful is all the support I really need. Enjoy! <3

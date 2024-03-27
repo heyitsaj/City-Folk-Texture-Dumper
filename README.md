@@ -9,7 +9,7 @@ This is just a project I've been working on to make it easier to dump the textur
 2. Run `python .\TextureDumper.py` to launch
 3. Follow the instructions in the menu
 
-# TODO:
+# TODO
   ✔️ Add basic support for some brres files\
   🔲 Dump textures of all files in a folder\
   🔲 Allow use for any brres file\

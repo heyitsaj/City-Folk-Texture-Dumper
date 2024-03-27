@@ -1,6 +1,6 @@
 # City Folk Texture Dumper
 Dumps textures from Animal Crossing City Folk for Dolphin Texture Packs\
-[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/M4M3W5Y93)\
+[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/M4M3W5Y93)
 
 # Overview
 This is just a project I've been working on to make it easier to dump the textures from City Folk for Dolphin without the tedious texture dumping process that is needed for many of them. Currently this only supports brres files for /npc/special, but more support is going to be added soon!

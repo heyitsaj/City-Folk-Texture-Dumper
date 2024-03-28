@@ -7,19 +7,21 @@ PATH = "./output"
 #Palette info
 def getPalette(palletteBytes):
     plt = palletteBytes[64:len(palletteBytes)]
-    vals = plt[:32]
+    size = int(palletteBytes[4:8].hex(),16)-64
+    vals = plt[:size]
     hashB = xxhash.xxh64(vals).hexdigest()
     pform = int(palletteBytes[24:28].hex(),16)
     valarr = [None] * 16
+    colorNum = int(palletteBytes[28:30].hex(),16)
     #RGB565
     if pform == 1:
-        for i in range(0,int(len(vals)/2)):
+        for i in range(0,colorNum):
             colorhex = vals[i*2:i*2+2].hex()
             colorint = int(colorhex,16)
             r = colorint >> 11
             g = (colorint - (r << 11)) >> 5
             b = colorint - (r << 11) - (g << 5)
-            valarr[i] = (int(r/31 * 255),int(g/63 * 255),int(b/31 * 255))
+            valarr.append((int(r/31 * 255),int(g/63 * 255),int(b/31 * 255)))
     elif pform == 2:
         for i in range(0,int(len(vals)/2)):
             colorhex = vals[i*2:i*2+2].hex()
@@ -29,13 +31,13 @@ def getPalette(palletteBytes):
                 r = (colorint - (a << 15)) >> 10
                 g = (colorint - (a << 15) - (r << 10)) >> 5
                 b = (colorint - (a << 15) - (r << 10) - (g << 5))
-                valarr[i] = (int(r/31 * 255),int(g/31 * 255),int(b/31 * 255), 255)
+                valarr.append((int(r/31 * 255),int(g/31 * 255),int(b/31 * 255), 255))
             else:
                 a = (colorint) >> 12
                 r = (colorint - (a << 12)) >> 8
                 g = (colorint - (a << 12) - (r << 8)) >> 4
                 b = (colorint - (a << 12) - (r << 8) - (g << 4))
-                valarr[i] = (int(r/15 * 255),int(g/15 * 255),int(b/15 * 255), int(a/7 * 255))
+                valarr.append((int(r/15 * 255),int(g/15 * 255),int(b/15 * 255), int(a/7 * 255)))
     return [hashB,valarr]
 
 #Tex info
@@ -44,37 +46,152 @@ def makeImageFromTex(texBytes,palletteData):
     width = int(int(texBytes[28:30].hex(),16))
     height = int(int(texBytes[30:32].hex(),16))
     formatted = int(int(texBytes[32:36].hex(),16))
-    im = None
-    if len(palletteData[1]) == 4:
-        im = Image.new(mode="RGBA",size=(width,height))
-    else:
-        im = Image.new(mode="RGB",size=(width,height))
     size -=64
-    id = 0
-    blocksize = 8
     pos = [0,0]
-    block = [0,0]
     texFile = texBytes[64:len(texBytes)]
     hashA = xxhash.xxh64(texFile[:size]).hexdigest()
-    maxblocksw = width/8
-    #Extract CI4 from tex0 8x8 block format
-    for i in texFile[:size].hex():
-        color = int(i,16)
-        im.putpixel(tuple([pos[0] + block[0] * 8,pos[1] + block[1] * 8]),palletteData[1][color])
-        pos[0] += 1
-        if pos[0] >= blocksize :
-            pos[1] += 1
-            pos[0] = 0
-        if pos[1] >= blocksize :
-            pos[0] = 0
-            pos[1] = 0
-            block[0] += 1
-        if block[0] >= maxblocksw :
-            block[0] = 0
-            block[1] += 1
-        id += 1
+    im = None
+    block = [0,0]
+    if formatted == 0: #I4
+        im = Image.new(mode="RGB",size=(width,height))
+        texFile = texBytes[64:len(texBytes)]
+        blockw = 8
+        blockh = 8
+        maxblocksw = width/blockw
+        for i in texFile[:size].hex():
+            bit = int(i,16) * 17
+            im.putpixel(tuple([pos[0] + block[0] * blockw,pos[1] + block[1] * blockh]),tuple([bit,bit,bit]))
+            pos[0] += 1
+            if pos[0] >= blockw :
+                pos[1] += 1
+                pos[0] = 0
+            if pos[1] >= blockh:
+                pos[0] = 0
+                pos[1] = 0
+                block[0] += 1
+            if block[0] >= maxblocksw :
+                block[0] = 0
+                block[1] += 1
+        im.save(PATH + "/tex1_"+str(width)+"x"+str(height)+"_"+str(hashA)+"_"+str(palletteData[0])+"_"+str(formatted)+".png")
+    elif formatted == 1: #I8
+        im = Image.new(mode="RGB",size=(width,height))
+        texFile = texBytes[64:len(texBytes)]
+        blockw = 8
+        blockh = 4
+        maxblocksw = width/blockw
+        for i in range(0,len(texFile[:size].hex()),2):
+            byte = int(texFile.hex()[i:i+2],16)
+            im.putpixel(tuple([pos[0] + block[0] * blockw,pos[1] + block[1] * blockh]),tuple([byte,byte,byte]))
+            pos[0] += 1
+            if pos[0] >= blockw :
+                pos[1] += 1
+                pos[0] = 0
+            if pos[1] >= blockh:
+                pos[0] = 0
+                pos[1] = 0
+                block[0] += 1
+            if block[0] >= maxblocksw :
+                block[0] = 0
+                block[1] += 1
+        im.save(PATH + "/tex1_"+str(width)+"x"+str(height)+"_"+str(hashA)+"_"+str(formatted)+".png")
+    elif formatted == 2: #TODO: IA4
+        im = Image.new(mode="RGBA",size=(width,height))
+        texFile = texBytes[64:len(texBytes)]
+        blockw = 8
+        blockh = 4
+        maxblocksw = width/blockw
+        for i in range(0,len(texFile[:size].hex()),2):
+            byte = int(texFile.hex()[i:i+2],16)
+            im.putpixel(tuple([pos[0] + block[0] * blockw,pos[1] + block[1] * blockh]),tuple([byte,byte,byte]))
+            print(c,",","(",pos[0],",",pos[1],")")
+            pos[0] += 1
+            if pos[0] >= blockw :
+                pos[1] += 1
+                pos[0] = 0
+            if pos[1] >= blockh:
+                pos[0] = 0
+                pos[1] = 0
+                block[0] += 1
+            if block[0] >= maxblocksw :
+                block[0] = 0
+                block[1] += 1
+        im.save(PATH + "/tex1_"+str(width)+"x"+str(height)+"_"+str(hashA)+"_"+str(formatted)+".png")
+    elif formatted == 3: #TODO: IA8
+        im = Image.new(mode="RGBA",size=(width,height))
+        texFile = texBytes[64:len(texBytes)]
+        for i in range(0,size,4):
+            alphaBit = int(texFile[i:i+2].hex(),16)
+            colorBit = int(texFile[i+2:i+4].hex(),16)
+            im.putpixel(tuple([pos[0],pos[1]]),tuple([colorBit,colorBit,colorBit,alphaBit]))
+            pos[0] += 1
+            if pos[0] >= width:
+                pos[0] = 0
+                pos[1] +=1
+        im.save(PATH + "/tex1_"+str(width)+"x"+str(height)+"_"+str(hashA)+"_"+str(formatted)+".png")
+    elif formatted == 4: #TODO: RGB565
+        return
+    elif formatted == 5: #TODO: RGB5A3
+        return
+    elif formatted == 6: #TODO: RGBA32
+        return
+    elif formatted == 8: #CI4
+        #palette needed
+        if len(palletteData[1]) == 4:
+            im = Image.new(mode="RGBA",size=(width,height))
+        else:
+            im = Image.new(mode="RGB",size=(width,height))
+        formatted = int(texBytes[32:36].hex(),16)
+        
+        #Extract CI4 from tex0 8x8 block format
+        blockw = 8
+        blockh = 8
+        maxblocksw = width/blockw
+        for i in texFile[:size].hex():
+            color = int(i,16)
+            im.putpixel(tuple([pos[0] + block[0] * blockw,pos[1] + block[1] * blockh]),palletteData[1][color])
+            pos[0] += 1
+            if pos[0] >= blockw :
+                pos[1] += 1
+                pos[0] = 0
+            if pos[1] >= blockh:
+                pos[0] = 0
+                pos[1] = 0
+                block[0] += 1
+            if block[0] >= maxblocksw :
+                block[0] = 0
+                block[1] += 1
+        im.save(PATH + "/tex1_"+str(width)+"x"+str(height)+"_"+str(hashA)+"_"+str(palletteData[0])+"_"+str(formatted)+".png")
+    elif formatted == 9: #TODO: CI8
+        #palette needed
+        if len(palletteData[1]) == 4:
+            im = Image.new(mode="RGBA",size=(width,height))
+        else:
+            im = Image.new(mode="RGB",size=(width,height))
+        formatted = int(texBytes[32:36].hex(),16)
+        
+        #Extract CI8 from tex0 8x8 block format
+        blockw = 8
+        blockh = 8
+        maxblocksw = width/blockw
+        for i in texFile[:size].hex():
+            color = int(i,16)
+            im.putpixel(tuple([pos[0] + block[0] * blockw,pos[1] + block[1] * blockh]),palletteData[1][color])
+            pos[0] += 1
+            if pos[0] >= blockw :
+                pos[1] += 1
+                pos[0] = 0
+            if pos[1] >= blockh:
+                pos[0] = 0
+                pos[1] = 0
+                block[0] += 1
+            if block[0] >= maxblocksw :
+                block[0] = 0
+                block[1] += 1
+        im.save(PATH + "/tex1_"+str(width)+"x"+str(height)+"_"+str(hashA)+"_"+str(palletteData[0])+"_"+str(formatted)+".png")
+    else:
+        print("Unsupported Texture Type Given: ",formatted)      
     
-    im.save(PATH + "/tex1_"+str(width)+"x"+str(height)+"_"+str(hashA)+"_"+str(palletteData[0])+"_"+str(formatted)+".png")
+    
     return
 def getIndices(str1 : str,str2 : str):
     arr = []
@@ -95,7 +212,7 @@ def extract(b):
     pfinal= {}
     if len(ps) == 1:
         for p in ps:
-            pfinal["skin"] = b[int(p):int(p)+96]
+            pfinal = b[int(p):int(p)+96]
     else:
         for p in ps:
             offset = int(b[int(p+20):int(p+24)].hex(),16)
@@ -120,10 +237,21 @@ def extract(b):
     print("Textures found:")    
     for i in hfinal:
         print(i)
-        if str(i).find("b")>-1:
-            makeImageFromTex(hfinal[i],getPalette(pfinal["skin0"]))
-        else:
-            makeImageFromTex(hfinal[i],getPalette(pfinal["skin"]))
+        format = int(int(hfinal[i][32:36].hex(),16))
+        if format < 7: #I4, I8, IA4, IA8
+            makeImageFromTex(hfinal[i],None)
+        
+        elif format > 7: #CI4, CI8
+            if type(pfinal) is bytes:
+                makeImageFromTex(hfinal[i],getPalette(pfinal))
+            elif type(pfinal) is list:
+                istr = str(i).replace("tex_","").replace("plt_","").replace(".","")
+
+                if str(i) == 'b':
+                    makeImageFromTex(hfinal[i],getPalette(pfinal["skin0"]))
+                else:
+                    makeImageFromTex(hfinal[i],getPalette(pfinal["skin"]))
+        else: print("Texture type not yet supported: ",format)
 
 print("Welcome to the City Folk Character dumper\nCreated by Andrew McCauley\nSupported Files: brres")
 while True:
@@ -132,7 +260,7 @@ while True:
         break
     if key == '2' or key.lower() == 'f':
         break
-    if key == '1' or key.lower() == 'I':
+    if key == '1' or key.lower() == 'i':
         fp = input("File Path: ")
         file = None
         try:
@@ -148,9 +276,7 @@ while True:
         if ext == "brres":
             fileD = file.read()
             os.makedirs(PATH, exist_ok=True)
-            
-            extract(fileD)
-            
+            extract(fileD)    
         else:
             "File must be brres"
         file.close()
